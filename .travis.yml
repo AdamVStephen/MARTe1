@@ -1,0 +1,9 @@
+language : cpp
+sudo : required
+dist : xenial
+compiler :
+    - gcc
+script :
+    - ./compile.MARTe linux config.MARTe all
+
+
