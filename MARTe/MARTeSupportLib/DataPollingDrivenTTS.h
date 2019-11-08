@@ -42,6 +42,7 @@ public:
     /** Constructor */
     DataPollingDrivenTTS(){
         polledDataReady = False;
+	reportSyncError = True;
     };
 
     /** Destructor */
@@ -70,8 +71,14 @@ public:
         while(!polledDataReady){
             ok = timeModule->Poll();
             if(!ok){
+		if(reportSyncError == True) {
+	    		AssertErrorCondition(FatalError, "DataPollingDrivenTTS::Syncronise exiting with false due to timing module.");
+			reportSyncError == False;
+		}
                 break;
-            }
+            } else {
+		reportSyncError = True;
+	    }
         }
         return ok;
     }
@@ -91,6 +98,8 @@ private:
     };
     
     bool             polledDataReady;
+
+    bool	     reportSyncError;
 OBJECT_DLL_STUFF(DataPollingDrivenTTS)
 };
 

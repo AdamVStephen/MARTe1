@@ -26,13 +26,28 @@
 ctags : %.cpp %.c %.h
 	ctags -R
 
-linux/%.o : %.cpp
-	$(COMPILER) -c $(OPTIM) $(CFLAGS) $(CPPFLAGS) $(CFLAGSPEC) $(DEBUG)  $*.cpp -o linux/$*.o
-#	$(COMPILER) -S $(OPTIM) $(CFLAGS) $(CFLAGSPEC) $(DEBUG)  $*.cpp -o linux/$*.s
+$(DEPDIR)/.force_mkdir : ;
+	  $(shell mkdir -p $(DEPDIR) > /dev/null)
+	  touch $@
 
-linux/%.o : %.c
-	$(CCOMPILER) -c $(CFLAGS) $(CFLAGSPEC) $(DEBUG) $(OPTIM)  $*.c -o linux/$*.o
-#	$(COMPILER) -S $(CFLAGS) $(CFLAGSPEC) $(DEBUG) $(OPTIM)  $*.c -o linux/$*.s
+linux/.force_mkdir: 
+	  $(shell mkdir -p linux > /dev/null)
+	  touch $@
+
+temp/.force_mkdir: 
+	  $(shell mkdir -p temp > /dev/null)
+	  touch $@
+
+
+linux/%.o : %.cpp $(DEPDIR)/%.d linux/.force_mkdir $(DEPDIR)/.force_mkdir
+	$(COMPILER) -c $(OPTIM) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) $(CFLAGSPEC) $(DEBUG)  $*.cpp -o linux/$*.o
+#	$(COMPILER) -S $(OPTIM) $(DEPFLAGS) $(CFLAGS) $(CFLAGSPEC) $(DEBUG)  $*.cpp -o linux/$*.s
+	$(POSTCOMPILE)
+
+linux/%.o : %.c  $(DEPDIR)/%.d linux/.force_mkdir $(DEPDIR)/.force_mkdir
+	$(CCOMPILER) $(DEPFLAGS) -c $(CFLAGS) $(CFLAGSPEC) $(DEBUG) $(OPTIM)  $*.c -o linux/$*.o
+#	$(COMPILER) $(DEPFLAGS) -S $(CFLAGS) $(CFLAGSPEC) $(DEBUG) $(OPTIM)  $*.c -o linux/$*.s
+	$(POSTCOMPILE)
 
 linux/%.a : $(OBJS)
 	touch $@
@@ -40,17 +55,16 @@ linux/%.a : $(OBJS)
 	ld -r $(OBJS) -o $@
 
 linux/%.so : linux/%.o $(OBJS)
-#	$(COMPILER) -shared -fPIC $(OBJS) $(LIBRARIES) linux/$*.o -o $@
-	$(COMPILER) -shared -fPIC $(OBJS) linux/$*.o $(LIBRARIES) -o $@
+	$(COMPILER) -Wl,--no-undefined -shared -fPIC $(OBJS) linux/$*.o $(LIBRARIES) -o $@
 	touch linux/lib$*.so
 	rm  linux/lib$*.so
 	ln -fns $*.so linux/lib$*.so
 
-%.ifo :  %.h
+%.ifo :  %.h temp/.force_mkdir
 	$(COMPILER) -E -I$(CINTSYSDIR)/src  -I$(CINTSYSDIR) $(CFLAGS) $(DEBUG) $(OPTIM)  $*.h > temp/temp.pp
 	cint  -i temp/temp.pp $(MAKEDEFAULTDIR)/MakeIfo.cxx $* > $*.ifo
 
-%.sinfo.cpp :  %.h
+%.sinfo.cpp :  %.h temp/.force_mkdir
 	$(COMPILER) -D_CINT -E -I$(CINTSYSDIR)/src  -I$(CINTSYSDIR) $(CFLAGS) $(DEBUG) $(OPTIM)  $*.h > temp/temp.pp
 	cint   -i  $(MAKEDEFAULTDIR)/MakeIfo.cxx $* > $*.sinfo.cpp
 
@@ -61,6 +75,10 @@ linux/%.exe : linux/%.o
 linux/%.ex : linux/%.o $(OBJS)
 	$(COMPILER) linux/$*.o $(OBJS) $(LIBRARIES)  -o linux/$*.ex
 
+
+$(DEPDIR)/%.d: ;
+.PRECIOUS: $(DEPDIR)/%.d
+
 depends.linux: dependsRaw.linux 
 	sed -f $(MAKEDEFAULTDIR)/CreateLinuxDepends.sed dependsRaw.linux >depends.linux
 
@@ -70,10 +88,10 @@ dependsRaw.linux:
 	@mkdir -p linux
 
 linux/%.gam : linux/%.o $(OBJS)
-	$(COMPILER) -shared -fPIC $(OBJS) $(LIBRARIES) linux/$*.o -o $@
+	$(COMPILER) -Wl,--no-undefined -shared -fPIC $(OBJS) linux/$*.o $(LIBRARIES) -o $@
 
 linux/%.drv : linux/%.o $(OBJS)
-	$(COMPILER) -shared -fPIC $(OBJS) $(LIBRARIES) linux/$*.o -o $@
+	$(COMPILER) -Wl,--no-undefined -shared -fPIC $(OBJS) linux/$*.o $(LIBRARIES) -o $@
 
 %.spb : 
 	$(MAKE) -C $* -f Makefile.$(TARGET)
@@ -85,11 +103,9 @@ linux/%.drv : linux/%.o $(OBJS)
 
 clean:  $(SUBPROJC)
 	rm -f depends*
-	rm -f $(TARGET)/*$(OBJEXT)
-	rm -f $(TARGET)/*$(DLLEXT)
-	rm -f $(TARGET)/*$(EXEEXT)
-	rm -f $(TARGET)/*$(LIBEXT)
-	rm -f $(TARGET)/*$(GAMEXT)
-	rm -f $(TARGET)/*$(DRVEXT)
-	rm -f $(TARGET)/*$(ASMEXT)
+	rm -rf temp
+	rm -rf *sinfo*
+	rm -rf $(TARGET)
 
+
+include $(wildcard $(patsubst %,$(DEPDIR)/%.d, $(basename $(SRCS))))

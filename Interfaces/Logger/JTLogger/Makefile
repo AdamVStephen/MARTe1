@@ -25,8 +25,7 @@
 
 CLASSPATH = .
 
-#JFLAGS = -classpath $(CLASSPATH) -target 1.7
-JFLAGS = -classpath $(CLASSPATH)
+JFLAGS = -classpath $(CLASSPATH) --release 7
 JCFLAGS =
 JRFLAGS =
 BUILD_DIR = build
@@ -36,9 +35,12 @@ JAVAC = javac $(JFLAGS) -d $(BUILD_DIR)
 
 all : jar
 
-compile :
+compile : $(BUILD_DIR)
 	$(shell find . -name \*.java -print > file.compile.list)
 	$(JAVAC) @file.compile.list
+
+$(BUILD_DIR):
+	mkdir $(BUILD_DIR);
 
 jar : compile
 	rm -f $(BUILD_DIR)/JTLogger.jar
@@ -52,5 +54,6 @@ doc :
 
 clean :
 	rm -rf doc
-	rm -rf $(BUILD_DIR)/* 
+	rm -rf $(BUILD_DIR)/*
+	rm -rf $(BUILD_DIR) 
 	rm JTLogger.jar
